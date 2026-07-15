@@ -451,7 +451,7 @@ function ObservedListingModal({ item, onClose }: { item: ObservedListing; onClos
   );
 }
 
-function UnofficialPanel({ csrf, requestLocalSession, onActivity, onTrack, lockOpen, onOpenLock }: { csrf: string | null; requestLocalSession: () => Promise<string>; onActivity: (text: string) => void; onTrack: (activity: { action: string; targetType?: string; targetId?: string; metadata?: Record<string, unknown> }) => void; lockOpen?: boolean; onOpenLock?: () => void }) {
+function UnofficialPanel({ csrf, requestLocalSession, onActivity, onTrack, lockOpen, onOpenLock, connected, applicationReady }: { csrf: string | null; requestLocalSession: () => Promise<string>; onActivity: (text: string) => void; onTrack: (activity: { action: string; targetType?: string; targetId?: string; metadata?: Record<string, unknown> }) => void; lockOpen?: boolean; onOpenLock?: () => void; connected: boolean; applicationReady: boolean }) {
   const savedConfig = useMemo(
     () => normalizeUnofficialConfig(stored<unknown>("mlam_unofficial_config", null)),
     [],
@@ -2086,7 +2086,7 @@ export default function App() {
               </button>
             </div>}
           </section>
-          {activeTab === "history" ? <HistoryPanel /> : activeTab === "unofficial" ? <UnofficialPanel csrf={session?.csrfToken ?? null} requestLocalSession={requestLocalSession} onActivity={setActivityMessage} onTrack={track} lockOpen={lockSettingsOpen} onOpenLock={() => setLockSettingsOpen(false)} /> : <>
+          {activeTab === "history" ? <HistoryPanel /> : activeTab === "unofficial" ? <UnofficialPanel csrf={session?.csrfToken ?? null} requestLocalSession={requestLocalSession} onActivity={setActivityMessage} onTrack={track} lockOpen={lockSettingsOpen} onOpenLock={() => setLockSettingsOpen(false)} connected={connected} applicationReady={applicationReady} /> : <>
           {sync && sync.status !== "idle" && (
             <section className={`sync-strip ${sync.status}`}>
               <div>

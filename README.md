@@ -66,7 +66,7 @@ Copie o resultado para `TOKEN_ENCRYPTION_KEY`. Nunca exponha essa chave, o secre
 3. Garanta os escopos OAuth `read`, `write` e `offline_access`.
 4. Cadastre exatamente o callback HTTPS fixo usado no `.env`. Neste computador, o callback preparado é:
 
-   `https://nonirrigated-kizzy-tangly.ngrok-free.dev/api/ml/callback`
+   `xxxxx.ngrok-free.dev/api/ml/callback`
 
 5. Inicie o túnel com `npm run dev:https` antes de conectar a conta.
 6. Mantenha `PUBLIC_APP_URL=http://localhost:5180`: o callback HTTPS associa a autorização à sessão local por um `state` opaco, de uso único e com expiração curta.

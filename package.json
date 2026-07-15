@@ -1,0 +1,33 @@
+{
+  "name": "mercado-livre-anuncios-manager",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Gestor independente e seguro de anúncios próprios do Mercado Livre.",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "setup": "node scripts/setup-local.mjs",
+    "predev": "node scripts/setup-local.mjs --quiet",
+    "dev": "concurrently -n api,web -c blue,green \"npm run dev -w @ml-manager/api\" \"npm run dev -w @ml-manager/web\"",
+    "predev:https": "node scripts/setup-local.mjs --quiet",
+    "dev:https": "concurrently -n api,web,https -c blue,green,magenta \"npm run dev -w @ml-manager/api\" \"npm run dev -w @ml-manager/web\" \"node scripts/start-tunnel.mjs\"",
+    "build": "npm run build -w @ml-manager/api && npm run build -w @ml-manager/web",
+    "test": "npm run test -w @ml-manager/api && npm run test -w @ml-manager/web",
+    "test:coverage": "npm run test:coverage -w @ml-manager/api && npm run test:coverage -w @ml-manager/web --if-present",
+    "test:e2e": "playwright test",
+    "lint": "npm run lint -ws --if-present",
+    "db:generate": "npm run db:generate -w @ml-manager/api",
+    "db:migrate": "npm run db:migrate -w @ml-manager/api",
+    "db:studio": "npm run db:studio -w @ml-manager/api",
+    "start": "npm run start -w @ml-manager/api"
+  },
+  "engines": {
+    "node": ">=20.19.0",
+    "npm": ">=10.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.1",
+    "concurrently": "^9.2.0"
+  }
+}

@@ -1,0 +1,227 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id            String       @id
+  accountId     String?
+  account       OAuthAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  createdAt     DateTime     @default(now())
+  expiresAt     DateTime
+  lastSeenAt    DateTime     @default(now())
+  userAgentHash String?
+  ipHash        String?
+  oauthAttempts OAuthAttempt[]
+  auditEvents   AuditEvent[]
+  aiConversations AiConversation[]
+
+  @@index([accountId])
+  @@index([expiresAt])
+}
+
+model AiConversation {
+  id         String      @id @default(cuid())
+  sessionId  String
+  session    Session     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  title      String      @default("Nova conversa")
+  archivedAt DateTime?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  messages   AiMessage[]
+
+  @@index([sessionId, archivedAt, updatedAt])
+}
+
+model AiMessage {
+  id              String         @id @default(cuid())
+  conversationId  String
+  conversation    AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role            String
+  content         String
+  reasoning       String?
+  attachmentsJson String         @default("[]")
+  createdAt       DateTime       @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+model OAuthAttempt {
+  id                   String   @id @default(cuid())
+  sessionId            String
+  session              Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  stateHash            String   @unique
+  codeVerifierCipher   String
+  createdAt            DateTime @default(now())
+  expiresAt            DateTime
+  usedAt               DateTime?
+
+  @@index([sessionId, expiresAt])
+}
+
+model OAuthAccount {
+  id                   String            @id @default(cuid())
+  mlUserId             String            @unique
+  nickname             String
+  siteId               String?
+  accessTokenCipher    String?
+  refreshTokenCipher   String?
+  accessTokenExpiresAt DateTime?
+  tokenVersion         Int               @default(0)
+  lastRefreshAt        DateTime?
+  revokedAt            DateTime?
+  disconnectedAt       DateTime?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  sessions             Session[]
+  listings             ListingSnapshot[]
+  salesSnapshots       SalesSnapshot[]
+  syncJobs             SyncJob[]
+  bulkOperations       BulkOperation[]
+  auditEvents          AuditEvent[]
+}
+
+model ListingSnapshot {
+  id                  String       @id @default(cuid())
+  accountId           String
+  account             OAuthAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  mlItemId            String
+  title               String
+  sku                 String?
+  sellerCustomField   String?
+  status              String
+  price               Float
+  originalPrice       Float?
+  discountPercent     Float        @default(0)
+  currencyId          String
+  availableQuantity   Int
+  soldQuantity        Int
+  categoryId          String?
+  condition           String?
+  listingTypeId       String?
+  permalink           String?
+  thumbnail           String?
+  catalogListing      Boolean      @default(false)
+  catalogProductId    String?
+  startTime           DateTime?
+  stopTime            DateTime?
+  lastUpdated         DateTime?
+  freeShipping        Boolean      @default(false)
+  picturesJson        String       @default("[]")
+  attributesJson      String       @default("[]")
+  variationsJson      String       @default("[]")
+  shippingJson        String       @default("{}")
+  rawJson             String
+  internalScore       Float        @default(0)
+  lastSaleDetectedAt  DateTime?
+  firstSeenAt         DateTime      @default(now())
+  capturedAt          DateTime      @default(now())
+  lastSyncJobId       String?
+
+  @@unique([accountId, mlItemId])
+  @@index([accountId, status])
+  @@index([accountId, title])
+  @@index([accountId, startTime])
+  @@index([accountId, lastUpdated])
+  @@index([accountId, internalScore])
+}
+
+model SalesSnapshot {
+  id           String       @id @default(cuid())
+  accountId    String
+  account      OAuthAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  mlItemId     String
+  soldQuantity Int
+  capturedAt   DateTime     @default(now())
+
+  @@index([accountId, mlItemId, capturedAt])
+}
+
+model SyncJob {
+  id                String       @id @default(cuid())
+  accountId         String
+  account           OAuthAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  status            String       @default("QUEUED")
+  kind              String       @default("FULL")
+  total             Int          @default(0)
+  processed         Int          @default(0)
+  succeeded         Int          @default(0)
+  failed            Int          @default(0)
+  errorMessage      String?
+  cancelRequestedAt DateTime?
+  createdAt         DateTime     @default(now())
+  startedAt         DateTime?
+  completedAt       DateTime?
+
+  @@index([accountId, createdAt])
+  @@index([accountId, status])
+}
+
+model BulkOperation {
+  id             String              @id @default(cuid())
+  accountId      String
+  account        OAuthAccount        @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  idempotencyKey String
+  action         String
+  status         String              @default("PREVIEW")
+  payloadJson    String
+  previewJson    String
+  total          Int                 @default(0)
+  succeeded      Int                 @default(0)
+  failed         Int                 @default(0)
+  createdAt      DateTime            @default(now())
+  startedAt      DateTime?
+  completedAt    DateTime?
+  items          BulkOperationItem[]
+
+  @@unique([accountId, idempotencyKey])
+  @@index([accountId, createdAt])
+}
+
+model BulkOperationItem {
+  id          String        @id @default(cuid())
+  operationId String
+  operation   BulkOperation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  mlItemId    String
+  status      String        @default("PENDING")
+  beforeJson  String
+  afterJson   String
+  errorCode   String?
+  errorMessage String?
+  attempts    Int           @default(0)
+  completedAt DateTime?
+
+  @@unique([operationId, mlItemId])
+  @@index([operationId, status])
+}
+
+model AuditEvent {
+  id           String        @id @default(cuid())
+  accountId    String?
+  account      OAuthAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  sessionId    String?
+  session      Session?      @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  action       String
+  targetType   String?
+  targetId     String?
+  outcome      String
+  metadataJson String        @default("{}")
+  ipHash       String?
+  createdAt    DateTime      @default(now())
+
+  @@index([accountId, createdAt])
+  @@index([action, createdAt])
+}
+
+model UnofficialAccess {
+  id                String   @id @default(cuid())
+  passwordHash      String
+  recoveryQuestion  String
+  recoveryAnswerHash String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}

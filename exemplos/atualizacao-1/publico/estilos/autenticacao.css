@@ -1,0 +1,162 @@
+/* ============================================================
+   autenticacao.css — tela de login/cadastro, gestão de usuários,
+   permissões e a censura das áreas bloqueadas.
+   ============================================================ */
+
+/* ----- Tela de autenticação ----- */
+.tela-autenticacao {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(1200px 500px at 80% -10%, var(--primaria-fundo), transparent),
+    var(--fundo);
+}
+.cartao-autenticacao {
+  width: 100%;
+  max-width: 440px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-grande);
+  padding: 30px 28px;
+  box-shadow: var(--sombra-media);
+  animation: painel-entrando 0.3s ease;
+}
+.cartao-autenticacao .marca { margin-bottom: 20px; }
+.cartao-autenticacao h1 { font-size: 1.35rem; margin-bottom: 4px; }
+.campos-auth { display: flex; flex-direction: column; gap: 11px; margin-top: 16px; }
+.campos-auth .linha-dupla { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.rodape-auth {
+  display: flex; justify-content: space-between; gap: 8px;
+  margin-top: 16px; padding-top: 14px;
+  border-top: 1px solid var(--borda);
+  flex-wrap: wrap;
+}
+
+/* ----- Gestão de usuários ----- */
+.gestao-usuarios { display: flex; flex-direction: column; gap: 14px; }
+.bloco-pendentes {
+  background: var(--atencao-fundo);
+  border: 1px solid var(--atencao);
+  border-radius: var(--raio-grande);
+  padding: 14px 16px;
+}
+.bloco-pendentes h3 { display: flex; align-items: center; gap: 8px; font-size: .92rem; color: var(--atencao); margin-bottom: 10px; }
+.bloco-pendentes h3 svg { width: 17px; height: 17px; }
+.lista-pendentes { display: flex; flex-direction: column; gap: 8px; }
+.linha-pendente {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: var(--superficie);
+  border-radius: var(--raio);
+  padding: 9px 12px;
+  flex-wrap: wrap;
+}
+.linha-pendente small { color: var(--texto-suave); }
+
+/* Formulário de criar/editar usuário */
+.form-usuario { display: flex; flex-direction: column; gap: 16px; }
+.grade-form-usuario {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px 14px;
+}
+.grade-form-usuario .subtitulo-form,
+.form-usuario > .subtitulo-form { grid-column: 1 / -1; }
+.subtitulo-form {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  color: var(--texto-suave);
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--borda);
+}
+
+/* Grade de permissões (marcar áreas por grupo) */
+.grade-permissoes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  margin-top: 8px;
+}
+.grupo-permissao > strong {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--texto-suave);
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--borda);
+}
+.grupo-permissao > div { display: flex; flex-direction: column; gap: 2px; }
+.marcar-permissao {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background var(--transicao);
+}
+.marcar-permissao:hover { background: var(--superficie-2); }
+.marcar-permissao input { position: absolute; opacity: 0; pointer-events: none; }
+.marcar-permissao .caixinha {
+  width: 17px; height: 17px;
+  border: 1.5px solid var(--borda-forte);
+  border-radius: 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--superficie);
+  flex-shrink: 0;
+  transition: background var(--transicao), border-color var(--transicao);
+}
+.marcar-permissao .caixinha svg { width: 12px; height: 12px; color: #fff; opacity: 0; transition: opacity 0.12s ease; }
+.marcar-permissao input:checked + .caixinha { background: var(--primaria); border-color: var(--primaria); }
+.marcar-permissao input:checked + .caixinha svg { opacity: 1; }
+.marcar-permissao input:disabled + .caixinha { background: var(--sucesso); border-color: var(--sucesso); opacity: 0.7; }
+.marcar-permissao small { color: var(--texto-fraco); }
+
+/* ----- Censura de área bloqueada ----- */
+.area-censurada {
+  max-width: 460px;
+  margin: 48px auto;
+  text-align: center;
+  padding: 40px 30px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-grande);
+  position: relative;
+  overflow: hidden;
+}
+/* Faixas diagonais discretas ao fundo, reforçando o "restrito" */
+.area-censurada::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(45deg, transparent, transparent 14px, var(--perigo-fundo) 14px, var(--perigo-fundo) 28px);
+  opacity: 0.5;
+  pointer-events: none;
+}
+.cadeado-censura {
+  width: 62px; height: 62px;
+  border-radius: 50%;
+  background: var(--perigo-fundo);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 14px;
+  position: relative;
+}
+.cadeado-censura svg { width: 30px; height: 30px; color: var(--perigo); }
+.area-censurada h2 { font-size: 1.2rem; margin-bottom: 6px; position: relative; }
+.area-censurada p { color: var(--texto-suave); font-size: 0.9rem; margin-bottom: 16px; position: relative; }
+.area-censurada .selo { position: relative; }
+
+/* Botões desabilitados por falta de permissão dentro de painéis liberados */
+.bloqueado-permissao {
+  opacity: 0.5;
+  pointer-events: none;
+  filter: grayscale(0.6);
+}
+
+@media (max-width: 640px) {
+  .grade-form-usuario { grid-template-columns: 1fr; }
+  .campos-auth .linha-dupla { grid-template-columns: 1fr; }
+}

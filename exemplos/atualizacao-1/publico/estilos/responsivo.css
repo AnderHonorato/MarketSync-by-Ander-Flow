@@ -1,0 +1,128 @@
+/* ============================================================
+   responsivo.css — ajustes por tamanho de tela
+   Regra que segui: nada estoura, nada fica gigante; no celular
+   o menu lateral vira menu de baixo e as tabelas rolam de lado
+   ============================================================ */
+
+/* ----- Notebook / telas médias ----- */
+@media (max-width: 1180px) {
+  :root { --largura-menu: 200px; }
+  .conteudo { padding: 18px; }
+  .grade-inicio { grid-template-columns: 1fr; }
+  .detalhe-anuncio { grid-template-columns: 240px 1fr; }
+}
+
+/* ----- Tablet ----- */
+@media (max-width: 920px) {
+  html { font-size: 14.5px; }
+
+  /* Menu lateral vira gaveta escondida */
+  .menu-lateral {
+    position: fixed;
+    left: 0; top: 0; bottom: 0;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    z-index: 90;
+    height: 100vh;
+    width: 250px;
+  }
+  .menu-lateral.aberto { transform: none; box-shadow: var(--sombra-forte); }
+  .somente-mobile { display: inline-flex; }
+
+  .cabecalho { padding: 0 14px; }
+  .indicador-conexao span { display: none; }
+  .indicador-conexao { padding: 5px 7px; }
+  .botao-sincronizar span, #botao-conectar span { display: none; }
+
+  .conversas-lateral { width: 210px; }
+  .detalhe-anuncio { grid-template-columns: 1fr; }
+  .midia-detalhe { max-width: 320px; margin: 0 auto; }
+}
+
+/* ----- Celular ----- */
+@media (max-width: 640px) {
+  html { font-size: 14px; }
+
+  .conteudo { padding: 14px 12px 84px; } /* espaço extra embaixo pro menu inferior */
+
+  /* Menu inferior fixo */
+  .menu-inferior {
+    display: flex;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    background: var(--superficie);
+    border-top: 1px solid var(--borda);
+    z-index: 80;
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+  }
+  .menu-inferior button {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 5px 2px;
+    font-size: 0.64rem;
+    font-weight: 600;
+    color: var(--texto-suave);
+    border-radius: 8px;
+  }
+  .menu-inferior button.ativo { color: var(--primaria); }
+  .menu-inferior button svg { width: 19px; height: 19px; }
+
+  .titulo-cabecalho p { display: none; }
+
+  .cartao-boas-vindas { flex-direction: column; align-items: flex-start; padding: 16px; }
+  .grade-resumo { grid-template-columns: repeat(2, 1fr); gap: 9px; }
+  .cartao-resumo { padding: 12px 13px; }
+  .cartao-resumo strong { font-size: 1.2rem; }
+
+  .cabeca-painel { flex-direction: column; align-items: stretch; }
+  .cabeca-painel .lado-direito { justify-content: flex-start; }
+  .barra-ferramentas .caixa-busca { max-width: none; }
+
+  .gaveta-filtros { grid-template-columns: 1fr; padding: 13px; }
+
+  /* Painel do assistente ocupa a tela toda no celular */
+  .painel-cheio.ativo { height: calc(100vh - var(--altura-cabecalho) - 74px); }
+  .conversas-lateral {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    z-index: 5;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    width: 240px;
+    box-shadow: var(--sombra-forte);
+  }
+  .conversas-lateral.aberta { transform: none; }
+  .assistente { position: relative; }
+  .mensagens { padding: 14px; }
+  .mensagem.usuario .corpo-mensagem { max-width: 88%; }
+
+  .grade-observados { grid-template-columns: repeat(2, 1fr); gap: 9px; }
+  .cartao-observado .corpo { padding: 9px 10px; }
+  .filtros-observados .campo { min-width: calc(50% - 5px); max-width: none; }
+
+  .formulario-publico .linha-formulario { flex-direction: column; align-items: stretch; }
+  .formulario-publico .linha-formulario .botao { width: 100%; justify-content: center; }
+
+  .modal { max-height: 92vh; }
+  .camada-modal { padding: 10px; align-items: flex-end; }
+  .modal { animation-name: modal-subindo; }
+  @keyframes modal-subindo {
+    from { opacity: 0; transform: translateY(40px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  .paginacao { justify-content: center; }
+  .paginacao .info-pagina { width: 100%; text-align: center; }
+
+  .barra-selecao { padding: 8px 11px; }
+  .barra-selecao .acoes-selecao { margin-left: 0; width: 100%; }
+
+  .grade-sessoes { grid-template-columns: 1fr; }
+  .area-avisos { left: 12px; right: 12px; bottom: 78px; max-width: none; }
+}
+
+/* ----- Telas muito pequenas ----- */
+@media (max-width: 380px) {
+  .grade-observados { grid-template-columns: 1fr; }
+  .grade-resumo { grid-template-columns: 1fr 1fr; }
+}

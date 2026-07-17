@@ -11,6 +11,8 @@ model Session {
   id            String       @id
   accountId     String?
   account       OAuthAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  usuarioId     String?
+  usuario       AppUser?     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   createdAt     DateTime     @default(now())
   expiresAt     DateTime
   lastSeenAt    DateTime     @default(now())
@@ -21,7 +23,77 @@ model Session {
   aiConversations AiConversation[]
 
   @@index([accountId])
+  @@index([usuarioId])
   @@index([expiresAt])
+}
+
+// Usuário do aplicativo (login local, separado da conta do Mercado Livre).
+// Hierarquia: OWNER (fundador, acesso total e moderação) > ADMIN (empresa,
+// aprovado pelo Owner) > USER (criado pelo Admin, com permissões por página).
+model AppUser {
+  id                 String    @id @default(cuid())
+  papel              String    @default("USER")   // OWNER | ADMIN | USER
+  situacao           String    @default("PENDENTE") // ATIVO | PENDENTE | SUSPENSO
+  usuario            String    @unique              // nome de acesso (login)
+  email              String    @unique
+  senhaHash          String
+  perguntaRecuperacao String
+  respostaRecuperacaoHash String
+  nome               String    @default("")
+  cpf                String    @default("")
+  perfilJson         String    @default("{}")       // telefone, endereço, etc.
+  permissoesJson     String    @default("[]")       // páginas liberadas (para USER)
+  // Tenancy: o Admin dono deste usuário (null para OWNER e ADMIN)
+  adminPaiId         String?
+  adminPai           AppUser?  @relation("AdminUsuarios", fields: [adminPaiId], references: [id], onDelete: Cascade)
+  usuariosFilhos     AppUser[] @relation("AdminUsuarios")
+  criadoPorId        String?
+  aprovadoPorId      String?
+  aprovadoEm         DateTime?
+  ultimoLoginEm      DateTime?
+  fotoPerfil         String?   // data URL pequena, visível no chat e no site
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  sessions           Session[]
+  chatEnviadas       ChatMensagem[]    @relation("MensagensEnviadas")
+  chatRecebidas      ChatMensagem[]    @relation("MensagensRecebidas")
+  chatPreferencias   ChatPreferencia[] @relation("PrefsDoUsuario")
+  chatComoContato    ChatPreferencia[] @relation("PrefsComoContato")
+
+  @@index([papel, situacao])
+  @@index([adminPaiId])
+}
+
+// Mensagem do chat interno (1 pra 1). Apagar mensagem é "soft": o registro
+// fica com apagadaEm preenchido e o texto some da visão.
+model ChatMensagem {
+  id        String    @id @default(cuid())
+  deId      String
+  de        AppUser   @relation("MensagensEnviadas", fields: [deId], references: [id], onDelete: Cascade)
+  paraId    String
+  para      AppUser   @relation("MensagensRecebidas", fields: [paraId], references: [id], onDelete: Cascade)
+  texto     String
+  apagadaEm DateTime?
+  lidaEm    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([deId, paraId, createdAt])
+  @@index([paraId, lidaEm])
+}
+
+// Preferências de UMA pessoa sobre UMA conversa: fixada, arquivada e
+// "apagadaAte" (apagar conversa só pra mim, sem sumir pro outro lado)
+model ChatPreferencia {
+  id         String    @id @default(cuid())
+  usuarioId  String
+  usuario    AppUser   @relation("PrefsDoUsuario", fields: [usuarioId], references: [id], onDelete: Cascade)
+  contatoId  String
+  contato    AppUser   @relation("PrefsComoContato", fields: [contatoId], references: [id], onDelete: Cascade)
+  fixada     Boolean   @default(false)
+  arquivada  Boolean   @default(false)
+  apagadaAte DateTime?
+
+  @@unique([usuarioId, contatoId])
 }
 
 model AiConversation {
@@ -45,6 +117,7 @@ model AiMessage {
   content         String
   reasoning       String?
   attachmentsJson String         @default("[]")
+  tokensJson      String         @default("{}")
   createdAt       DateTime       @default(now())
 
   @@index([conversationId, createdAt])

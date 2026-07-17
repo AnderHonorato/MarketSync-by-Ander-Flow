@@ -17,4 +17,13 @@ output/
 *.db-journal
 *.db-wal
 *.db-shm
+*.db.bak
+ngrok.exe
+.ngrok.exe.old
+instalador/
+ferramentas/
+*.tsbuildinfo
+apps/api/memoria.md
+apps/api/memory-state-*.json
+*.traineddata
 _test.bat

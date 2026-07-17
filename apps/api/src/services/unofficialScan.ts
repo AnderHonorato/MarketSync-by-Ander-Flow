@@ -69,7 +69,7 @@ export type UnofficialScanJob = {
   query: string | null;
   limitMode: "limited" | "all";
   requestedLimit: number | null;
-  status: "queued" | "running" | "completed" | "failed" | "cancelled" | "auth_required";
+  status: "queued" | "running" | "paused" | "completed" | "failed" | "cancelled" | "auth_required";
   phase: string;
   progress: number;
   processed: number;
@@ -86,6 +86,11 @@ export type UnofficialScanJob = {
   errorCode: string | null;
   cancelRequested: boolean;
   _sellerSearchDone?: boolean;
+  // Pausa configurável: a busca para ao atingir N produtos e pergunta se
+  // deve continuar. A decisão chega pela rota /decisao.
+  pauseThreshold: number | null;
+  _pauseDecision?: "continuar" | "finalizar" | null;
+  _nextPauseAt?: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -97,6 +102,8 @@ export type CreateUnofficialScanInput = {
   limitMode: "limited" | "all";
   maxItems?: number;
   inspectPix: boolean;
+  // Pausar a busca a cada N produtos e perguntar se continua
+  pauseEvery?: number;
 };
 
 const jobs = new Map<string, UnofficialScanJob>();
@@ -272,7 +279,7 @@ function catalogProductIdFromLink(url: URL): string | null {
   return null;
 }
 
-function extractSellerSlug(sourceUrl: string): string | null {
+export function extractSellerSlug(sourceUrl: string): string | null {
   try {
     const url = new URL(sourceUrl);
     const match = url.pathname.match(/\/(?:loja|pagina)\/([^/?]+)/i);
@@ -282,8 +289,46 @@ function extractSellerSlug(sourceUrl: string): string | null {
 
 function moneyFromText(value: string): number | null {
   const cleaned = value.replace(/[^\d,.]/g, "").replace(/\.(?=\d{3}(?:\D|$))/g, "").replace(",", ".");
+  if (!cleaned) return null; // texto vazio não é preço zero
   const amount = Number(cleaned);
   return Number.isFinite(amount) ? amount : null;
+}
+
+// Junta fração + centavos de um bloco andes-money-amount ("42" + "78" => 42.78).
+// Antes o valor vinha só da fração e os centavos eram perdidos, o que gerava
+// descontos errados no card (ex.: R$ 46,00 no lugar de R$ 42,78).
+function amountFromBlock(block: cheerio.Cheerio<never> | ReturnType<cheerio.CheerioAPI>): number | null {
+  const anyBlock = block as unknown as { length: number; find: (selector: string) => { first: () => { text: () => string } } };
+  if (!anyBlock?.length) return null;
+  const fraction = moneyFromText(anyBlock.find("[class*='money-amount__fraction']").first().text());
+  if (fraction == null) return null;
+  const centsText = anyBlock.find("[class*='money-amount__cents']").first().text().replace(/\D/g, "");
+  const cents = centsText ? Number(centsText.slice(0, 2)) / 100 : 0;
+  return fraction + (Number.isFinite(cents) ? cents : 0);
+}
+
+// Preço atual e original de um card de listagem. O bloco riscado (previous) e o
+// parcelamento ficam de fora do preço atual; sem isso o card pegava o primeiro
+// número que aparecesse, que costuma ser o preço antigo.
+function cardPrices($: cheerio.CheerioAPI, card: ReturnType<cheerio.CheerioAPI>): { price: number | null; originalPrice: number | null } {
+  const previous = card.find("[class*='money-amount--previous'], s[class*='andes-money-amount']").first();
+  const originalCandidate = amountFromBlock(previous);
+  let current = card.find("[class*='poly-price__current'] [class*='andes-money-amount']").first();
+  if (!current.length) {
+    current = card.find("[class*='andes-money-amount']").filter((_, element) => {
+      const $element = $(element);
+      const classe = $element.attr("class") ?? "";
+      // Quero o CONTAINER do preço, não os pedaços dele nem o valor riscado
+      if (/money-amount__(?:fraction|cents|currency)/.test(classe)) return false;
+      if (classe.includes("previous")) return false;
+      if ($element.parents("[class*='money-amount--previous'], [class*='installments'], s").length) return false;
+      return true;
+    }).first();
+  }
+  const price = amountFromBlock(current) ?? moneyFromText(card.find("[class*='money-amount__fraction']").last().text());
+  // Original menor ou igual ao atual não é desconto de verdade — descarto
+  const originalPrice = originalCandidate != null && price != null && originalCandidate > price ? originalCandidate : null;
+  return { price, originalPrice };
 }
 
 function emptyListing(id: string, title: string, permalink: string, sourceRank: number): ObservedListing {
@@ -329,8 +374,9 @@ export function discoverListings(html: string, maxItems?: number): ObservedListi
     item.catalogListing = Boolean(item.catalogProductId);
     item.thumbnail = thumbnail ? decodeHtmlValue(thumbnail) : null;
     item.pictures = item.thumbnail ? [item.thumbnail] : [];
-    item.price = moneyFromText(card.find("[class*='money-amount__fraction']").first().text());
-    item.originalPrice = moneyFromText(card.find("[class*='money-amount--previous'], [class*='price--original']").first().text());
+    const prices = cardPrices($, card as ReturnType<cheerio.CheerioAPI>);
+    item.price = prices.price;
+    item.originalPrice = prices.originalPrice;
     const cardText = card.text().replace(/\s+/g, " ");
     item.shipping.freeShipping = /frete\s+gr[aá]tis/i.test(cardText) ? true : null;
     item.condition = /\busado\b/i.test(cardText) ? "used" : /\bnovo\b/i.test(cardText) ? "new" : null;
@@ -356,16 +402,30 @@ export function discoverNextPage(html: string, currentUrl: URL): URL | null {
 export function detectExplicitPix(html: string): { found: boolean; evidence: string | null } {
   const $ = cheerio.load(html);
   $("script, style, noscript, svg, template").remove();
-  const normalized = ($("main").text() || $("body").text()).replace(/\s+/g, " ").trim();
+  // O .text() do cheerio cola os elementos sem espaço ("pagamentoPixBoleto"),
+  // o que quebrava o \b da regex e fazia a página com "Pix" escrito passar
+  // despercebida. Troco as tags por espaço antes de extrair o texto.
+  const brutoHtml = $("main").html() ?? $("body").html() ?? "";
+  const comEspacos = brutoHtml.replace(/<[^>]+>/g, " ");
+  const normalized = cheerio.load(`<div>${comEspacos}</div>`)("div").text().replace(/\s+/g, " ").trim();
+  // Primeiro procuro Pix ligado a desconto/pagamento (evidência forte)
   const patterns = [
-    /(?:\d{1,2}%\s*(?:de\s*)?(?:desconto|off)|desconto|preço|pagamento)[^.]{0,100}(?:com|no|via)\s+pix/iu,
-    /pix[^.]{0,100}(?:desconto|preço|pagamento|economize)/iu,
-    /(?:pague|pagando)[^.]{0,80}(?:com|via)\s+pix/iu,
+    /(?:\d{1,2}(?:[.,]\d{1,2})?\s*%\s*(?:de\s*)?(?:desconto|off)|desconto|pre[çc]o|pagamento|à vista|economize|abatimento)[^.]{0,120}(?:com|no|via|pelo|usando)?\s*\bpix\b/iu,
+    /\bpix\b[^.]{0,120}(?:desconto|pre[çc]o|pagamento|economize|à vista|off|%)/iu,
+    /(?:pague|pagando|parcele)[^.]{0,100}(?:com|via|no|pelo)\s+\bpix\b/iu,
   ];
   const match = patterns.map((pattern) => normalized.match(pattern)).find(Boolean);
-  if (!match?.index && match?.index !== 0) return { found: false, evidence: null };
-  const start = Math.max(0, match.index - 45);
-  return { found: true, evidence: normalized.slice(start, Math.min(normalized.length, match.index + match[0].length + 45)).trim().slice(0, 220) };
+  if (match && (match.index || match.index === 0)) {
+    const start = Math.max(0, match.index - 45);
+    return { found: true, evidence: normalized.slice(start, Math.min(normalized.length, match.index + match[0].length + 45)).trim().slice(0, 220) };
+  }
+  // Sem desconto explícito, mas a palavra Pix escrita na página também conta
+  // como observação (era a reclamação: "está escrito pix e não detecta")
+  const simples = normalized.match(/[^.]{0,60}\bpix\b[^.]{0,60}/iu);
+  if (simples) {
+    return { found: true, evidence: `Menção a Pix na página (sem desconto explícito): “${simples[0].trim().slice(0, 170)}”` };
+  }
+  return { found: false, evidence: null };
 }
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -410,6 +470,43 @@ function productImages(value: unknown): string[] {
   return values.map((entry) => typeof entry === "string" ? entry : textValue(record(entry)?.url)).filter((entry): entry is string => Boolean(entry));
 }
 
+// Junta TODAS as fotos do anúncio, não só a primeira. As fontes, em ordem de
+// confiança: JSON-LD, ids de foto embutidos no estado da página (picture_id),
+// a galeria renderizada e o og:image. Agrupo pela identidade da foto e fico
+// com a maior versão disponível (2X) de cada uma.
+function extractGalleryPictures(html: string, $: cheerio.CheerioAPI, sementes: Array<string | undefined | null>): string[] {
+  const porFoto = new Map<string, string>();
+  const ordem: string[] = [];
+  const push = (raw: string | undefined | null) => {
+    if (!raw) return;
+    const url = decodeJsonValue(decodeHtmlValue(String(raw)));
+    if (!/^https:\/\/(?:http2|mla-s\d-p)\.mlstatic\.com\//i.test(url)) return;
+    if (!/\.(?:jpg|jpeg|png|webp)(?:$|\?)/i.test(url)) return;
+    // A identidade da foto é o miolo do nome (ex.: 693086-MLA84053561498_042025)
+    const idMatch = url.match(/(\d{4,}-ML[A-Z]{1}\d{6,}[_\d]*)/i);
+    const chave = idMatch ? idMatch[1] : url;
+    const existente = porFoto.get(chave);
+    if (!existente) { porFoto.set(chave, url); ordem.push(chave); }
+    else if (/2X/i.test(url) && !/2X/i.test(existente)) porFoto.set(chave, url);
+  };
+
+  for (const semente of sementes) push(semente);
+
+  // Ids de foto citados no estado embutido apontam pras fotos deste anúncio
+  const idsDeFoto = [...html.matchAll(/(?:"|\\")picture_id(?:"|\\")\s*:\s*(?:"|\\")([\w-]+)/gi)].map((m) => m[1]);
+  for (const idFoto of idsDeFoto.slice(0, 30)) {
+    const urlMatch = html.match(new RegExp(`https:\\\\?/\\\\?/http2\\.mlstatic\\.com\\\\?/D_(?:NQ_NP_)?(?:2X_)?${idFoto.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[\\w.-]*\\.(?:jpg|jpeg|png|webp)`, "i"));
+    if (urlMatch) push(urlMatch[0].replace(/\\\//g, "/"));
+  }
+
+  // Galeria renderizada da página do produto
+  $("[class*='ui-pdp-gallery'] img, [class*='gallery'] figure img").each((_, img) => {
+    push($(img).attr("data-zoom") || $(img).attr("data-src") || $(img).attr("src"));
+  });
+
+  return ordem.map((chave) => porFoto.get(chave)!).slice(0, 24);
+}
+
 export function enrichFromPage(item: ObservedListing, html: string, inspectPix = true): ObservedListing {
   const $ = cheerio.load(html);
   let product: Record<string, unknown> | null = null;
@@ -425,11 +522,11 @@ export function enrichFromPage(item: ObservedListing, html: string, inspectPix =
   const canonical = $("link[rel='canonical']").attr("href") || $("meta[property='og:url']").attr("content");
   let permalink = item.permalink;
   if (canonical) { try { permalink = assertAllowedPublicUrl(canonical).toString(); } catch { /* keep discovered URL */ } }
-  const pictures = [...new Set([
+  const pictures = extractGalleryPictures(html, $, [
     ...productImages(productData?.image),
     ...$("meta[property='og:image']").map((_, meta) => $(meta).attr("content")).get().filter(Boolean),
-    ...[...html.matchAll(/(?:"|\\")secure_url(?:"|\\")\s*:\s*(?:"|\\")([^"\\]+(?:\\.[^"\\]*)*)/gi)].slice(0, 12).map((match) => decodeJsonValue(match[1])),
-  ])].slice(0, 20);
+    ...[...html.matchAll(/(?:"|\\")secure_url(?:"|\\")\s*:\s*(?:"|\\")([^"\\]+(?:\\.[^"\\]*)*)/gi)].slice(0, 24).map((match) => decodeJsonValue(match[1])),
+  ]);
   const visibleText = ($("main").text() || $("body").text()).replace(/\s+/g, " ");
   const soldText = visibleText.match(/(?:mais de\s+)?([\d.,]+)\s+(?:vendidos?|vendas?)/i)?.[1];
   const attributes: ObservedAttribute[] = [];
@@ -449,7 +546,12 @@ export function enrichFromPage(item: ObservedListing, html: string, inspectPix =
   const sellerId = embeddedNumber(html, "seller_id");
   const rawPrice = offers?.price ?? embeddedNumber(html, "price");
   const price = rawPrice == null ? null : Number(rawPrice);
-  const originalPrice = embeddedNumber(html, "original_price") ?? item.originalPrice;
+  const precoFinal = price != null && Number.isFinite(price) ? price : item.price;
+  // Preço original: estado embutido, senão o valor riscado visível na página.
+  // E se não for maior que o preço atual, não existe desconto — vira null.
+  const originalVisivel = amountFromBlock($("[class*='price__original-value'], s[class*='money-amount--previous']").first() as ReturnType<cheerio.CheerioAPI>);
+  const originalBruto = embeddedNumber(html, "original_price") ?? originalVisivel ?? item.originalPrice;
+  const originalPrice = originalBruto != null && precoFinal != null && originalBruto > precoFinal ? originalBruto : null;
   const description = textValue(productData?.description)
     ?? $("[class*='description'] p, [class*='description__content']").first().text().replace(/\s+/g, " ").trim()
     ?? null;
@@ -461,7 +563,7 @@ export function enrichFromPage(item: ObservedListing, html: string, inspectPix =
     permalink,
     thumbnail: pictures[0] ?? item.thumbnail,
     pictures: pictures.length ? pictures : item.pictures,
-    price: price != null && Number.isFinite(price) ? price : item.price,
+    price: precoFinal,
     originalPrice,
     description: description || null,
     condition: /NewCondition/i.test(itemCondition || "") ? "new" : /UsedCondition/i.test(itemCondition || "") ? "used" : itemCondition || item.condition,
@@ -508,9 +610,65 @@ async function safetyPause(job: UnofficialScanJob, ms: number, reason: string) {
   job.cooldownMs = 0;
 }
 
-async function discoverAllPages(job: UnofficialScanJob, renderedReader: RenderedReader | null): Promise<ObservedListing[]> {
+// Segura a busca no status "paused" até a pessoa responder se quer continuar.
+// A resposta chega pela rota /unofficial/scans/:id/decisao, que preenche
+// job._pauseDecision. Cancelamento também destrava.
+async function aguardarDecisaoDePausa(job: UnofficialScanJob, total: number): Promise<"continuar" | "finalizar"> {
+  job.status = "paused";
+  job.waiting = true;
+  job.waitReason = "aguardando sua decisão";
+  job.phase = `Pausado em ${total} produtos: deseja continuar a busca?`;
+  job.updatedAt = new Date().toISOString();
+  addJobLog(job, "info", `Pausa programada atingida (${total} produtos). Aguardando sua decisão de continuar ou finalizar.`);
+  job._pauseDecision = null;
+  while (!job._pauseDecision) {
+    if (job.cancelRequested) throw new Error("CANCELLED");
+    await pause(400);
+  }
+  const decisao = job._pauseDecision;
+  job._pauseDecision = null;
+  job.status = "running";
+  job.waiting = false;
+  job.waitReason = null;
+  job.updatedAt = new Date().toISOString();
+  return decisao;
+}
+
+// Recebe a decisão do usuário sobre a pausa (chamada pela rota HTTP)
+export function decideUnofficialScanPause(sessionId: string, id: string, continuar: boolean) {
+  const job = getUnofficialScan(sessionId, id);
+  if (job.status !== "paused") throw new AppError(409, "SCAN_NOT_PAUSED", "Esta consulta não está pausada aguardando decisão.");
+  job._pauseDecision = continuar ? "continuar" : "finalizar";
+  job.updatedAt = new Date().toISOString();
+  return job;
+}
+
+// Descobre o número (id) do vendedor lendo a página do primeiro anúncio.
+// É ele que destrava a etapa complementar de busca por _CustId_.
+async function descobrirSellerIdNumerico(job: UnofficialScanJob, results: Map<string, ObservedListing>, renderedReader: RenderedReader | null): Promise<number | null> {
+  const primeiro = [...results.values()][0];
+  if (!primeiro) return null;
+  try {
+    const itemUrl = assertAllowedPublicUrl(primeiro.permalink);
+    await safetyPause(job, detailCooldownMs(), "lendo um anúncio pra identificar o vendedor");
+    let html: string;
+    try {
+      html = await fetchHtml(itemUrl);
+    } catch (directError) {
+      if (!renderedReader) throw directError;
+      html = await renderedReader.read(itemUrl);
+    }
+    const sellerId = embeddedNumber(html, "seller_id");
+    return sellerId != null && Number.isInteger(sellerId) && sellerId > 0 ? sellerId : null;
+  } catch {
+    return null;
+  }
+}
+
+async function discoverAllPages(job: UnofficialScanJob, renderedReader: RenderedReader | null): Promise<{ items: ObservedListing[]; blockedPages: URL[] }> {
   const results = new Map<string, ObservedListing>();
   const visited = new Set<string>();
+  const blockedPages: URL[] = [];
   let pageUrl: URL | null = new URL(job.sourceUrl);
   while (pageUrl && job.pagesRead < MAX_PUBLIC_PAGES) {
       if (job.cancelRequested) throw new Error("CANCELLED");
@@ -518,17 +676,45 @@ async function discoverAllPages(job: UnofficialScanJob, renderedReader: Rendered
       if (visited.has(pageKey)) break;
       visited.add(pageKey);
       job.phase = job.mode === "product" ? `Buscando ofertas públicas · página ${job.pagesRead + 1}` : `Lendo anúncios da loja · página ${job.pagesRead + 1}`;
-      let html: string;
+      let html: string | null = null;
       try {
         html = await fetchHtml(pageUrl);
       } catch (directError) {
-        if (!renderedReader || !(directError instanceof AppError) || ![403, 429].includes(directError.status)) throw directError;
-        addJobLog(job, "warning", "A resposta pública direta foi limitada. Tentando a leitura renderizada.", "MLAM-PUB-010");
-        html = await renderedReader.read(pageUrl, true, job.requestedLimit);
+        const limitado = directError instanceof AppError && [401, 403, 429].includes(directError.status);
+        if (!limitado) throw directError;
+        if (renderedReader) {
+          addJobLog(job, "warning", "A resposta pública direta foi limitada. Tentando a leitura renderizada.", "MLAM-PUB-010");
+          try {
+            html = await renderedReader.read(pageUrl, true, job.requestedLimit);
+          } catch (renderError) {
+            // Bloqueado nas duas formas de leitura. Se eu já tenho anúncios,
+            // NÃO deixo a consulta morrer: guardo a página pra repetir no
+            // final com uma espera bem maior e sigo com o que já foi lido.
+            if (results.size > 0) {
+              blockedPages.push(pageUrl);
+              addJobLog(job, "warning", `A página ${job.pagesRead + 1} ficou bloqueada nas duas formas de leitura. Os ${results.size} anúncios já lidos foram preservados; vou repetir essa página no final, com mais calma.`, "MLAM-PUB-011");
+              html = null;
+            } else {
+              throw renderError;
+            }
+          }
+        } else if (results.size > 0) {
+          blockedPages.push(pageUrl);
+          addJobLog(job, "warning", `A página ${job.pagesRead + 1} foi limitada. Vou repetir no final, preservando os ${results.size} anúncios já lidos.`, "MLAM-PUB-011");
+          html = null;
+        } else {
+          throw directError;
+        }
       }
+      if (html == null) break; // sem HTML não dá pra descobrir a próxima página deste ramo
       const remaining = job.requestedLimit == null ? undefined : Math.max(0, job.requestedLimit - results.size);
       const pageItems = discoverListings(html, remaining);
-      for (const item of pageItems) if (!results.has(item.id)) results.set(item.id, { ...item, sourceRank: results.size + 1 });
+      let novosNestaPagina = 0;
+      for (const item of pageItems) {
+        if (results.has(item.id)) continue;
+        results.set(item.id, { ...item, sourceRank: results.size + 1 });
+        novosNestaPagina += 1;
+      }
       job.pagesRead += 1;
       job.total = results.size;
       job.items = [...results.values()];
@@ -536,18 +722,49 @@ async function discoverAllPages(job: UnofficialScanJob, renderedReader: Rendered
       job.updatedAt = new Date().toISOString();
       addJobLog(job, "info", `Página ${job.pagesRead} lida: ${pageItems.length} anúncios encontrados, ${results.size} únicos acumulados.`);
       if (job.requestedLimit != null && results.size >= job.requestedLimit) break;
-      const nextPage = discoverNextPage(html, pageUrl);
+
+      // Pausa configurável: atingiu a meta? Pergunto se continua antes de seguir.
+      if (job.pauseThreshold && results.size >= (job._nextPauseAt ?? job.pauseThreshold)) {
+        job.items = [...results.values()];
+        const decisao = await aguardarDecisaoDePausa(job, results.size);
+        if (decisao === "finalizar") {
+          addJobLog(job, "info", "Busca encerrada a seu pedido. Seguindo para a leitura dos detalhes do que já foi encontrado.");
+          break;
+        }
+        job._nextPauseAt = results.size + job.pauseThreshold;
+        addJobLog(job, "info", `Busca retomada sem repetir nada. Próxima pausa ao chegar em ${job._nextPauseAt} produtos.`);
+      }
+
+      let nextPage = discoverNextPage(html, pageUrl);
+
+      // As listas do Mercado Livre às vezes escondem o link "Seguinte" (rolagem
+      // infinita). Como a paginação delas é previsível (_Desde_49, _Desde_97…),
+      // eu mesmo monto o próximo endereço enquanto a página render itens novos.
+      // Era ISSO que travava a busca em ~160 produtos no modo "buscar todos".
+      if (!nextPage && pageUrl.hostname === "lista.mercadolivre.com.br" && novosNestaPagina > 0) {
+        const desdeAtual = Number(pageUrl.toString().match(/_Desde_(\d+)/)?.[1] ?? 1);
+        const passo = Math.max(novosNestaPagina, 48);
+        const semDesde = pageUrl.toString().replace(/_Desde_\d+/, "").replace(/\/$/, "");
+        try {
+          nextPage = assertAllowedPublicUrl(`${semDesde}_Desde_${desdeAtual + passo}`);
+          addJobLog(job, "info", `A página não ofereceu o link "Seguinte"; montei a próxima etapa manualmente (_Desde_${desdeAtual + passo}).`);
+        } catch { /* endereço montado inválido; sigo sem próxima página */ }
+      }
+
       if (!nextPage) {
-        if (job.mode === "seller" && !job._sellerSearchDone) {
+        // Etapa complementar do modo loja: descubro o número do vendedor no
+        // primeiro anúncio e varro o catálogo público dele (_CustId_ numérico,
+        // que é o formato que a busca do ML aceita de verdade)
+        if (job.mode === "seller" && !job._sellerSearchDone && results.size > 0) {
           job._sellerSearchDone = true;
-          const sellerSlug = extractSellerSlug(job.sourceUrl);
-          if (sellerSlug) {
-            addJobLog(job, "info", `Páginas da loja esgotadas. Buscando por "${sellerSlug}" no catálogo público.`);
-            const searchUrl = new URL(`https://lista.mercadolivre.com.br/_CustId_${encodeURIComponent(sellerSlug)}`);
-            pageUrl = searchUrl;
-            await safetyPause(job, pageCooldownMs(), "aguardando antes da busca complementar");
+          const sellerId = await descobrirSellerIdNumerico(job, results, renderedReader);
+          if (sellerId) {
+            addJobLog(job, "info", `Loja esgotada com ${results.size} anúncios. Etapa 2: varrendo o catálogo público do vendedor ${sellerId}.`);
+            pageUrl = new URL(`https://lista.mercadolivre.com.br/_CustId_${sellerId}`);
+            await safetyPause(job, pageCooldownMs() + 4_000, "aguardando antes da etapa complementar");
             continue;
           }
+          addJobLog(job, "warning", "Não consegui identificar o número do vendedor pra etapa complementar.", "MLAM-PUB-007");
         }
         addJobLog(job, "warning", "A página não informou um próximo endereço. A leitura desta origem foi encerrada.", "MLAM-PUB-007");
         break;
@@ -556,7 +773,46 @@ async function discoverAllPages(job: UnofficialScanJob, renderedReader: Rendered
       pageUrl = nextPage;
   }
   if (pageUrl && job.pagesRead >= MAX_PUBLIC_PAGES) job.partial = true;
-  return [...results.values()].slice(0, job.requestedLimit ?? undefined);
+  return { items: [...results.values()].slice(0, job.requestedLimit ?? undefined), blockedPages };
+}
+
+// Última cartada pras páginas que ficaram bloqueadas: espera longa (25–45 s)
+// e uma nova tentativa, primeiro direta e depois renderizada. O que vier é
+// somado ao resultado; o que continuar bloqueado vira consulta parcial.
+async function retryBlockedPages(job: UnofficialScanJob, blockedPages: URL[], renderedReader: RenderedReader | null) {
+  if (!blockedPages.length) return;
+  addJobLog(job, "warning", `${blockedPages.length} página(s) ficaram bloqueadas na primeira passada. Aguardando um intervalo maior pra tentar de novo.`);
+  for (const blockedUrl of blockedPages) {
+    if (job.cancelRequested) throw new Error("CANCELLED");
+    await safetyPause(job, 25_000 + Math.floor(Math.random() * 20_000), "espera longa antes de repetir a página bloqueada");
+    job.phase = "Repetindo página bloqueada com mais calma";
+    job.updatedAt = new Date().toISOString();
+    try {
+      let html: string;
+      try {
+        html = await fetchHtml(blockedUrl);
+      } catch (directError) {
+        if (!renderedReader) throw directError;
+        html = await renderedReader.read(blockedUrl, true, job.requestedLimit);
+      }
+      const restante = job.requestedLimit == null ? undefined : Math.max(0, job.requestedLimit - job.items.length);
+      const extras = discoverListings(html, restante);
+      const conhecidos = new Set(job.items.map((entry) => entry.id));
+      let novos = 0;
+      for (const extra of extras) {
+        if (conhecidos.has(extra.id)) continue;
+        job.items.push({ ...extra, sourceRank: job.items.length + 1 });
+        conhecidos.add(extra.id);
+        novos += 1;
+      }
+      job.total = job.items.length;
+      job.pagesRead += 1;
+      addJobLog(job, "info", `Página bloqueada recuperada na nova tentativa: ${novos} anúncios novos, ${job.items.length} no total.`);
+    } catch {
+      job.partial = true;
+      addJobLog(job, "warning", "A página continuou bloqueada mesmo após a espera longa. Os anúncios já lidos foram preservados.", "MLAM-PUB-011");
+    }
+  }
 }
 
 async function runJob(job: UnofficialScanJob) {
@@ -570,8 +826,27 @@ async function runJob(job: UnofficialScanJob) {
     await safetyPause(job, 900, "preparando a primeira leitura em ritmo seguro");
     if (job.cancelRequested) throw new Error("CANCELLED");
     renderedReader = await createRenderedReader();
-    job.items = await discoverAllPages(job, renderedReader);
+    // Se o Mercado Livre bloquear logo a PRIMEIRA página, não desisto de
+    // cara: espero um intervalo bem maior (30–60 s, crescente) e repito a
+    // descoberta até 3 vezes antes de declarar falha
+    let descoberta: Awaited<ReturnType<typeof discoverAllPages>> | null = null;
+    for (let tentativa = 0; ; tentativa += 1) {
+      try {
+        descoberta = await discoverAllPages(job, renderedReader);
+        break;
+      } catch (bloqueio) {
+        const limitado = bloqueio instanceof AppError && [403, 429].includes(bloqueio.status);
+        if (!limitado || tentativa >= 2 || job.cancelRequested) throw bloqueio;
+        addJobLog(job, "warning", `O Mercado Livre bloqueou a leitura logo no começo (tentativa ${tentativa + 1} de 3). Vou aguardar um intervalo bem maior antes de repetir.`, "MLAM-PUB-011");
+        await safetyPause(job, 30_000 + tentativa * 15_000 + Math.floor(Math.random() * 10_000), "espera longa após bloqueio inicial");
+        job.pagesRead = 0; // a nova passada recomeça a contagem do zero
+      }
+    }
+    job.items = descoberta.items;
     job.total = job.items.length;
+    // Páginas que bloquearam no meio da passada ganham uma nova chance
+    // com espera bem maior, antes da leitura dos detalhes
+    await retryBlockedPages(job, descoberta.blockedPages, renderedReader);
     if (!job.items.length) throw new AppError(422, "NO_PUBLIC_LISTINGS", "Nenhum anúncio público foi encontrado para essa consulta.");
     for (let index = 0; index < job.items.length; index += 1) {
       if (job.cancelRequested) throw new Error("CANCELLED");
@@ -675,13 +950,17 @@ export function createUnofficialScan(sessionId: string, input: CreateUnofficialS
   const source = input.mode === "seller" ? normalizeSellerUrl(input.url ?? "") : productSearchUrl(input.query ?? "");
   const query = input.mode === "product" ? (input.query ?? "").replace(/\s+/g, " ").trim() : null;
   const requestedLimit = input.limitMode === "all" ? null : Math.max(1, Math.min(2_000, input.maxItems ?? 30));
+  const pauseThreshold = input.pauseEvery && input.pauseEvery >= 10
+    ? Math.min(2_000, Math.floor(input.pauseEvery))
+    : null;
   const now = new Date().toISOString();
   const job: UnofficialScanJob = {
     id: randomUUID(), sessionId, mode: input.mode, sourceUrl: source.toString(), query,
     limitMode: input.limitMode, requestedLimit, status: "queued", phase: "Preparando a consulta",
     progress: 0, processed: 0, total: 0, pagesRead: 0, inspectPix: input.inspectPix,
     waiting: false, waitReason: null, cooldownMs: 0, partial: false, items: [], logs: [], error: null, errorCode: null,
-    cancelRequested: false, createdAt: now, updatedAt: now,
+    cancelRequested: false, pauseThreshold, _nextPauseAt: pauseThreshold ?? undefined,
+    createdAt: now, updatedAt: now,
   };
   jobs.set(job.id, job);
   void runJob(job);
@@ -697,7 +976,7 @@ export function getUnofficialScan(sessionId: string, id: string) {
 
 export function cancelUnofficialScan(sessionId: string, id: string) {
   const job = getUnofficialScan(sessionId, id);
-  if (["queued", "running"].includes(job.status)) {
+  if (["queued", "running", "paused"].includes(job.status)) {
     job.cancelRequested = true;
     job.phase = "Cancelando após a leitura atual";
     job.updatedAt = new Date().toISOString();

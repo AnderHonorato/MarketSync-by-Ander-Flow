@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-tema="claro">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MarketSync — Gestor de Anúncios</title>
+  <link rel="icon" href="icone-claro.png" />
+  <!-- Separei o CSS por responsabilidade pra ficar fácil de achar as coisas depois -->
+  <link rel="stylesheet" href="estilos/base.css" />
+  <link rel="stylesheet" href="estilos/componentes.css" />
+  <link rel="stylesheet" href="estilos/paineis.css" />
+  <link rel="stylesheet" href="estilos/responsivo.css" />
+  <link rel="stylesheet" href="estilos/novidades.css" />
+  <link rel="stylesheet" href="estilos/autenticacao.css" />
+  <link rel="stylesheet" href="estilos/chat.css" />
+</head>
+<body>
+
+  <!-- Ícones em SVG. Desenhei tudo aqui dentro pra não depender de internet nem de biblioteca -->
+  <svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <symbol id="icone-casa" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5M5 9.5V21h5v-6h4v6h5V9.5"/></symbol>
+      <symbol id="icone-etiqueta" viewBox="0 0 24 24"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.5"/></symbol>
+      <symbol id="icone-moeda" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 6.5v11M15 8.8c-.6-1-1.7-1.5-3-1.5-1.7 0-3 .9-3 2.3 0 3 6 1.7 6 4.7 0 1.4-1.3 2.3-3 2.3-1.4 0-2.6-.6-3.2-1.7"/></symbol>
+      <symbol id="icone-trofeu" viewBox="0 0 24 24"><path d="M7 4h10v5a5 5 0 0 1-10 0V4ZM7 5H4v2a3 3 0 0 0 3 3M17 5h3v2a3 3 0 0 1-3 3M12 14v4M8 21h8M9 18h6"/></symbol>
+      <symbol id="icone-radar" viewBox="0 0 24 24"><path d="M19.1 4.9A10 10 0 1 0 22 12"/><path d="M16.2 7.8A6 6 0 1 0 18 12"/><circle cx="12" cy="12" r="1.5"/><path d="m12 12 7-7"/></symbol>
+      <symbol id="icone-conversa" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-8 8H4l2-3.2A8 8 0 1 1 21 12Z"/></symbol>
+      <symbol id="icone-historico" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v4h4"/><path d="M12 7v5l3.5 2"/></symbol>
+      <symbol id="icone-lupa" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.5-4.5"/></symbol>
+      <symbol id="icone-filtro" viewBox="0 0 24 24"><path d="M3 5h18l-7 8.5V19l-4 2v-7.5L3 5Z"/></symbol>
+      <symbol id="icone-sincronizar" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.5 6.2M3 12a9 9 0 0 1 15.5-6.2M18.5 2v4h-4M5.5 22v-4h4"/></symbol>
+      <symbol id="icone-sol" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></symbol>
+      <symbol id="icone-lua" viewBox="0 0 24 24"><path d="M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11Z"/></symbol>
+      <symbol id="icone-ajuda" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.6 2.6 0 0 1 5 1c0 1.8-2.5 2.2-2.5 4"/><circle cx="12" cy="17.3" r=".4"/></symbol>
+      <symbol id="icone-engrenagem" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19 12a7 7 0 0 0-.2-1.6l2-1.5-2-3.4-2.3 1a7 7 0 0 0-2.7-1.6L13.5 2h-3l-.3 2.9a7 7 0 0 0-2.7 1.6l-2.3-1-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .5.1 1.1.2 1.6l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 2.7 1.6l.3 2.9h3l.3-2.9a7 7 0 0 0 2.7-1.6l2.3 1 2-3.4-2-1.5c.1-.5.2-1.1.2-1.6Z"/></symbol>
+      <symbol id="icone-sair" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></symbol>
+      <symbol id="icone-fechar" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+      <symbol id="icone-confere" viewBox="0 0 24 24"><path d="m4.5 12.5 5 5L19.5 7"/></symbol>
+      <symbol id="icone-alerta" viewBox="0 0 24 24"><path d="M12 3 1.8 20.2h20.4L12 3Z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.5" r=".4"/></symbol>
+      <symbol id="icone-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5"/><circle cx="12" cy="7.8" r=".4"/></symbol>
+      <symbol id="icone-baixar" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4.5-4.5M12 15l-4.5-4.5M4 19h16"/></symbol>
+      <symbol id="icone-olho" viewBox="0 0 24 24"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.8"/></symbol>
+      <symbol id="icone-seta-esquerda" viewBox="0 0 24 24"><path d="m14.5 6-6 6 6 6"/></symbol>
+      <symbol id="icone-seta-direita" viewBox="0 0 24 24"><path d="m9.5 6 6 6-6 6"/></symbol>
+      <symbol id="icone-externo" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M19 13.5V19a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 4 19V7a1.5 1.5 0 0 1 1.5-1.5H11"/></symbol>
+      <symbol id="icone-copiar" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+      <symbol id="icone-caixa" viewBox="0 0 24 24"><path d="m12 2 8.5 4.8v9.6L12 21.2l-8.5-4.8V6.8L12 2ZM3.8 7 12 11.7 20.2 7M12 21V12"/></symbol>
+      <symbol id="icone-caminhao" viewBox="0 0 24 24"><path d="M1.5 5.5h13v11h-13zM14.5 9.5h4l3 3.5v3.5h-7"/><circle cx="6" cy="18.5" r="1.8"/><circle cx="17.5" cy="18.5" r="1.8"/></symbol>
+      <symbol id="icone-estrela" viewBox="0 0 24 24"><path d="m12 3 2.7 5.9 6.3.7-4.7 4.3 1.3 6.2L12 17l-5.6 3.1 1.3-6.2L3 9.6l6.3-.7L12 3Z"/></symbol>
+      <symbol id="icone-lixeira" viewBox="0 0 24 24"><path d="M4 6.5h16M9 6.5V4.8A1.3 1.3 0 0 1 10.3 3.5h3.4A1.3 1.3 0 0 1 15 4.8v1.7M6 6.5 7 21h10l1-14.5M10 10.5v6.5M14 10.5v6.5"/></symbol>
+      <symbol id="icone-arquivo" viewBox="0 0 24 24"><path d="M3 5h18v4H3zM5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M10 13h4"/></symbol>
+      <symbol id="icone-mais" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+      <symbol id="icone-enviar" viewBox="0 0 24 24"><path d="M21.5 2.5 10.8 13.2M21.5 2.5 14.5 21.5l-3.7-8.3L2.5 9.5l19-7Z"/></symbol>
+      <symbol id="icone-imagem" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.7"/><path d="m21 16-4.8-4.8L6 21.5"/></symbol>
+      <symbol id="icone-menu" viewBox="0 0 24 24"><path d="M4 6.5h16M4 12h16M4 17.5h16"/></symbol>
+      <symbol id="icone-cadeado" viewBox="0 0 24 24"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></symbol>
+      <symbol id="icone-cadeado-aberto" viewBox="0 0 24 24"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 7.8-1.2"/></symbol>
+      <symbol id="icone-loja" viewBox="0 0 24 24"><path d="M4 7.5 5.5 3h13L20 7.5M4 7.5h16M4 7.5v12a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-12M9 20.5v-6h6v6"/></symbol>
+      <symbol id="icone-chave" viewBox="0 0 24 24"><circle cx="8" cy="16" r="4.5"/><path d="m11.3 12.7 9-9M17 7l3 3M14 10l2.5 2.5"/></symbol>
+      <symbol id="icone-escudo" viewBox="0 0 24 24"><path d="M12 2.5 4.5 5.5v6c0 5 3.2 8.3 7.5 10 4.3-1.7 7.5-5 7.5-10v-6L12 2.5Z"/><path d="m8.8 11.8 2.3 2.3 4.2-4.2"/></symbol>
+      <symbol id="icone-grafico" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 14 4-4.5 3.5 3L19 7"/></symbol>
+      <symbol id="icone-relogio" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></symbol>
+      <symbol id="icone-lapis" viewBox="0 0 24 24"><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z"/></symbol>
+      <symbol id="icone-usuarios" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.7a3.5 3.5 0 0 1 0 6.6M21.5 20a6.5 6.5 0 0 0-4.5-6.2"/></symbol>
+      <symbol id="icone-quadrado" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/></symbol>
+      <symbol id="icone-quadrado-marcado" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="m8.5 12.2 2.5 2.5 4.7-5"/></symbol>
+      <symbol id="icone-carrinho" viewBox="0 0 24 24"><circle cx="9" cy="20" r="1.6"/><circle cx="18" cy="20" r="1.6"/><path d="M2.5 3.5h3l2.6 12h11.4l2-8.5H6.2"/></symbol>
+      <symbol id="icone-pergunta" viewBox="0 0 24 24"><path d="M21 11.5a8 8 0 0 1-8 8H4l2-3.2a8 8 0 1 1 15-4.8Z"/><path d="M10.6 9.2a2.3 2.3 0 0 1 4.4.8c0 1.5-2.2 1.9-2.2 3.4"/><circle cx="12.8" cy="16" r=".4"/></symbol>
+      <symbol id="icone-tendencia" viewBox="0 0 24 24"><path d="m3 17 5.5-5.5 3.5 3L20.5 6M15 6h5.5v5.5"/></symbol>
+      <symbol id="icone-sino" viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2.5 7-2.5 7h17S18 15 18 9ZM10 20a2.2 2.2 0 0 0 4 0"/></symbol>
+      <symbol id="icone-celular" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></symbol>
+    </defs>
+  </svg>
+
+  <!-- Tela de autenticação local (login do aplicativo). É a primeira coisa
+       que aparece; o conteúdo é montado pelo autenticacao.js -->
+  <main id="tela-autenticacao" class="tela-autenticacao" hidden></main>
+
+  <!-- Tela de conexão da conta Mercado Livre (mantida para compatibilidade) -->
+  <main id="tela-login" class="tela-login" hidden>
+    <section class="cartao-login">
+      <div class="marca">
+        <img id="login-icone" src="icone-claro.png" alt="MarketSync" />
+        <div><strong>MarketSync</strong><small>by Ander Flow</small></div>
+      </div>
+      <h1>Acessar anúncios</h1>
+      <p class="descricao-login">Confira as conexões abaixo e escolha como entrar.</p>
+      <div id="login-erro" class="aviso perigo" hidden></div>
+      <div class="conexoes-login" id="login-conexoes"></div>
+      <div class="acoes-login" id="login-acoes"></div>
+      <p class="selo-seguranca"><svg><use href="#icone-escudo"/></svg> Tokens protegidos no servidor local. Nada sai da sua máquina.</p>
+    </section>
+  </main>
+
+  <!-- Aplicativo principal -->
+  <div id="aplicativo" class="aplicativo" hidden>
+
+    <aside class="menu-lateral" id="menu-lateral">
+      <div class="marca marca-menu">
+        <img id="menu-icone" src="icone-claro.png" alt="MarketSync" />
+        <div><strong>MarketSync</strong><small>by Ander Flow</small></div>
+      </div>
+      <!-- O menu separa o que é oficial (API do Mercado Livre) do que é leitura
+           pública não oficial, pra nunca misturar as duas coisas -->
+      <nav class="navegacao" id="navegacao-principal">
+        <button data-painel="inicio" class="ativo"><svg><use href="#icone-casa"/></svg><span>Início</span></button>
+        <p class="grupo-navegacao">Conta oficial · API</p>
+        <button data-painel="anuncios"><svg><use href="#icone-etiqueta"/></svg><span>Anúncios</span></button>
+        <button data-painel="vendas"><svg><use href="#icone-carrinho"/></svg><span>Vendas</span></button>
+        <button data-painel="perguntas"><svg><use href="#icone-pergunta"/></svg><span>Perguntas · SAC</span><b class="bolinha-contador" id="contador-perguntas" hidden></b></button>
+        <button data-painel="precos"><svg><use href="#icone-moeda"/></svg><span>Preços</span></button>
+        <button data-painel="concorrentes"><svg><use href="#icone-trofeu"/></svg><span>Concorrentes</span></button>
+        <button data-painel="tendencias"><svg><use href="#icone-tendencia"/></svg><span>Tendências</span></button>
+        <p class="grupo-navegacao">Não oficial</p>
+        <button data-painel="publico"><svg><use href="#icone-radar"/></svg><span>Consultas públicas</span></button>
+        <p class="grupo-navegacao">Geral</p>
+        <button data-painel="assistente"><svg><use href="#icone-conversa"/></svg><span>AlphaBot IA</span></button>
+        <button data-painel="chat"><svg><use href="#icone-usuarios"/></svg><span>Chat da equipe</span><b class="bolinha-contador" id="contador-chat" hidden></b></button>
+        <button data-painel="historico"><svg><use href="#icone-historico"/></svg><span>Histórico</span></button>
+      </nav>
+      <div class="rodape-menu">
+        <button id="botao-tema" title="Alternar tema"><svg><use href="#icone-lua"/></svg><span>Tema escuro</span></button>
+        <button id="botao-ajuda"><svg><use href="#icone-ajuda"/></svg><span>Ajuda</span></button>
+        <button id="botao-configuracoes"><svg><use href="#icone-engrenagem"/></svg><span>Opções</span></button>
+      </div>
+    </aside>
+
+    <div class="area-principal">
+      <header class="cabecalho">
+        <button class="botao-icone" id="botao-menu-mobile" aria-label="Abrir menu"><svg><use href="#icone-menu"/></svg></button>
+        <div class="titulo-cabecalho">
+          <h1 id="titulo-painel">Início</h1>
+          <p id="subtitulo-painel">Visão geral da sua conta</p>
+        </div>
+        <!-- Central de avisos: mensagens rotativas sobre o que está acontecendo.
+             Troca devagar, e eventos importantes furam a fila com destaque.
+             Clicar abre um modal com os detalhes. -->
+        <button class="central-avisos" id="central-avisos" hidden>
+          <svg><use href="#icone-sino"/></svg>
+          <span id="texto-central-avisos"></span>
+        </button>
+        <div class="estado-cabecalho">
+          <div class="indicador-conexao" id="indicador-servidor" title="Serviço local">
+            <i></i><span>Servidor</span>
+          </div>
+          <div class="indicador-conexao" id="indicador-conta" title="Conta Mercado Livre">
+            <i></i><span>Conta</span>
+          </div>
+          <button class="botao" id="botao-sincronizar" hidden><svg><use href="#icone-sincronizar"/></svg><span>Sincronizar</span></button>
+          <a class="botao primario" id="botao-conectar" hidden><svg><use href="#icone-chave"/></svg><span>Conectar conta</span></a>
+        </div>
+      </header>
+
+      <!-- Barra de progresso da sincronização: só aparece quando tem algo rodando -->
+      <div class="faixa-sincronizacao" id="faixa-sincronizacao" hidden></div>
+
+      <main class="conteudo" id="conteudo">
+        <section class="painel ativo" id="painel-inicio" data-titulo="Início" data-subtitulo="Visão geral da sua conta"></section>
+        <section class="painel" id="painel-anuncios" data-titulo="Anúncios" data-subtitulo="Todos os anúncios da conta conectada"></section>
+        <section class="painel" id="painel-vendas" data-titulo="Vendas" data-subtitulo="Pedidos e resumo financeiro da conta oficial"></section>
+        <section class="painel" id="painel-perguntas" data-titulo="Perguntas · SAC" data-subtitulo="Perguntas de compradores, com resposta direto daqui"></section>
+        <section class="painel" id="painel-tendencias" data-titulo="Tendências" data-subtitulo="O que mais se busca no Mercado Livre agora"></section>
+        <section class="painel" id="painel-precos" data-titulo="Preços" data-subtitulo="Precificação, descontos e promoções"></section>
+        <section class="painel" id="painel-concorrentes" data-titulo="Concorrentes" data-subtitulo="Disputa de catálogo dos seus anúncios"></section>
+        <section class="painel" id="painel-publico" data-titulo="Consultas públicas" data-subtitulo="Essa página faz leitura das páginas sem estar logado - não abuse para evitar bloqueios."></section>
+        <section class="painel painel-cheio" id="painel-assistente" data-titulo="AlphaBot IA" data-subtitulo="Estou aqui para ajudar com dúvidas, análises, e textos para seus anúncios"></section>
+        <section class="painel painel-cheio" id="painel-chat" data-titulo="Chat da equipe" data-subtitulo="Comunicação interna entre Fundador, administradores e usuários"></section>
+        <section class="painel" id="painel-historico" data-titulo="Histórico" data-subtitulo="Sessões e movimentos registrados no sistema"></section>
+      </main>
+    </div>
+
+    <!-- Navegação de baixo pro celular -->
+    <nav class="menu-inferior" id="menu-inferior">
+      <button data-painel="inicio" class="ativo"><svg><use href="#icone-casa"/></svg><span>Início</span></button>
+      <button data-painel="anuncios"><svg><use href="#icone-etiqueta"/></svg><span>Anúncios</span></button>
+      <button data-painel="publico"><svg><use href="#icone-radar"/></svg><span>Públicas</span></button>
+      <button data-painel="assistente"><svg><use href="#icone-conversa"/></svg><span>AlphaBot IA</span></button>
+      <button id="botao-mais-mobile"><svg><use href="#icone-menu"/></svg><span>Mais</span></button>
+    </nav>
+  </div>
+
+  <!-- Camadas flutuantes: avisos rápidos e modais -->
+  <div id="area-avisos" class="area-avisos" aria-live="polite"></div>
+  <div id="camada-modal" class="camada-modal" hidden></div>
+
+  <script type="module" src="scripts/aplicativo.js"></script>
+</body>
+</html>

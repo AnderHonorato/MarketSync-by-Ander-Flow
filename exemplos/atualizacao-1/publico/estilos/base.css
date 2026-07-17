@@ -1,0 +1,275 @@
+/* ============================================================
+   base.css — variáveis de tema, reset e layout geral
+   Mantenho aqui só o esqueleto da página; componentes ficam
+   no componentes.css e cada painel no paineis.css
+   ============================================================ */
+
+:root {
+  /* Tema claro (padrão) */
+  --fundo: #f3f4f1;
+  --superficie: #ffffff;
+  --superficie-2: #f8f9f7;
+  --superficie-3: #eff1ee;
+  --borda: #e2e5e0;
+  --borda-forte: #cfd3cc;
+  --texto: #1c2530;
+  --texto-suave: #64707e;
+  --texto-fraco: #939ca8;
+
+  --primaria: #2f6bdf;
+  --primaria-escura: #2456b8;
+  --primaria-fundo: rgba(47, 107, 223, 0.09);
+  --sucesso: #2e9e5b;
+  --sucesso-fundo: rgba(46, 158, 91, 0.11);
+  --atencao: #d9822b;
+  --atencao-fundo: rgba(217, 130, 43, 0.12);
+  --perigo: #d64545;
+  --perigo-fundo: rgba(214, 69, 69, 0.1);
+  --roxo: #7a5cd6;
+  --roxo-fundo: rgba(122, 92, 214, 0.1);
+
+  --sombra-leve: 0 1px 2px rgba(20, 28, 38, 0.06);
+  --sombra-media: 0 4px 16px rgba(20, 28, 38, 0.1);
+  --sombra-forte: 0 12px 40px rgba(20, 28, 38, 0.18);
+
+  --raio: 10px;
+  --raio-grande: 14px;
+  --transicao: 0.18s ease;
+
+  --largura-menu: 226px;
+  --altura-cabecalho: 64px;
+
+  --fonte: "Segoe UI", "Inter", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --fonte-mono: "Cascadia Code", Consolas, "Courier New", monospace;
+}
+
+/* Tema escuro: troco só as variáveis, o resto acompanha sozinho */
+html[data-tema="escuro"] {
+  --fundo: #14161a;
+  --superficie: #1c1f24;
+  --superficie-2: #22262c;
+  --superficie-3: #292e35;
+  --borda: #2d323a;
+  --borda-forte: #3c424c;
+  --texto: #eceef1;
+  --texto-suave: #9aa3ae;
+  --texto-fraco: #6d7683;
+
+  --primaria: #6f9bff;
+  --primaria-escura: #8db0ff;
+  --primaria-fundo: rgba(111, 155, 255, 0.13);
+  --sucesso: #4dbd7f;
+  --sucesso-fundo: rgba(77, 189, 127, 0.13);
+  --atencao: #e69a4d;
+  --atencao-fundo: rgba(230, 154, 77, 0.14);
+  --perigo: #e56a6a;
+  --perigo-fundo: rgba(229, 106, 106, 0.12);
+  --roxo: #a08ae6;
+  --roxo-fundo: rgba(160, 138, 230, 0.13);
+
+  --sombra-leve: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --sombra-media: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --sombra-forte: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* ----- Reset enxuto ----- */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* O atributo hidden precisa vencer qualquer display definido por classe */
+[hidden] { display: none !important; }
+
+html { font-size: 15px; }
+
+body {
+  font-family: var(--fonte);
+  background: var(--fundo);
+  color: var(--texto);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  transition: background var(--transicao), color var(--transicao);
+}
+
+img { max-width: 100%; display: block; }
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+input, select, textarea { font: inherit; color: inherit; }
+a { color: var(--primaria); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: var(--fonte-mono); font-size: 0.86em; }
+
+/* Ícones SVG: herdam a cor do texto e ficam num tamanho decente por padrão */
+svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+
+::selection { background: var(--primaria-fundo); }
+
+/* Barra de rolagem discreta, combinando com o tema */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--borda-forte); border-radius: 6px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background-color: var(--texto-fraco); }
+
+/* Quem prefere menos movimento não recebe animação nenhuma */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* ----- Estrutura geral do aplicativo ----- */
+.aplicativo { display: flex; min-height: 100vh; }
+
+.menu-lateral {
+  width: var(--largura-menu);
+  flex-shrink: 0;
+  background: var(--superficie);
+  border-right: 1px solid var(--borda);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  padding: 18px 12px 14px;
+  z-index: 30;
+  transition: background var(--transicao), width 0.22s ease, padding 0.22s ease, transform 0.22s ease;
+}
+
+.marca { display: flex; align-items: center; gap: 10px; }
+.marca img { width: 36px; height: 36px; border-radius: 9px; }
+.marca strong { font-size: 1.05rem; letter-spacing: 0.01em; display: block; line-height: 1.2; }
+.marca small { color: var(--texto-suave); font-size: 0.72rem; }
+.marca-menu { padding: 4px 10px 18px; }
+
+/* Menu recolhido: só ícones */
+.menu-lateral.recolhido {
+  width: 56px;
+  padding: 18px 6px 14px;
+  transition: width 0.22s ease, padding 0.22s ease;
+}
+.menu-lateral.recolhido .marca-menu > div { display: none; }
+.menu-lateral.recolhido .marca-menu { padding: 4px 2px 18px; justify-content: center; }
+.menu-lateral.recolhido .marca-menu img { margin: 0 auto; }
+.menu-lateral.recolhido .navegacao button,
+.menu-lateral.recolhido .rodape-menu button { justify-content: center; padding-left: 6px; padding-right: 6px; }
+.menu-lateral.recolhido .navegacao button span,
+.menu-lateral.recolhido .rodape-menu button span { display: none; }
+.menu-lateral.recolhido .rodape-menu { align-items: center; }
+
+.navegacao { display: flex; flex-direction: column; gap: 3px; flex: 1; }
+.navegacao button,
+.rodape-menu button {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 12px;
+  border-radius: var(--raio);
+  color: var(--texto-suave);
+  font-weight: 500;
+  font-size: 0.93rem;
+  text-align: left;
+  transition: background var(--transicao), color var(--transicao);
+}
+.navegacao button:hover, .rodape-menu button:hover { background: var(--superficie-2); color: var(--texto); }
+.navegacao button.ativo { background: var(--primaria-fundo); color: var(--primaria); font-weight: 600; }
+.navegacao button.ativo svg { stroke-width: 2.1; }
+
+.rodape-menu { border-top: 1px solid var(--borda); padding-top: 10px; display: flex; flex-direction: column; gap: 2px; }
+
+.area-principal { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+.cabecalho {
+  height: var(--altura-cabecalho);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 22px;
+  background: var(--superficie);
+  border-bottom: 1px solid var(--borda);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+.titulo-cabecalho { flex: 1; min-width: 0; }
+.titulo-cabecalho h1 { font-size: 1.12rem; line-height: 1.25; }
+.titulo-cabecalho p { font-size: 0.78rem; color: var(--texto-suave); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.estado-cabecalho { display: flex; align-items: center; gap: 9px; }
+
+.indicador-conexao {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--superficie-2);
+  border: 1px solid var(--borda);
+  font-size: 0.76rem;
+  color: var(--texto-suave);
+}
+.indicador-conexao i { width: 8px; height: 8px; border-radius: 50%; background: var(--texto-fraco); transition: background var(--transicao); }
+.indicador-conexao.ok i { background: var(--sucesso); box-shadow: 0 0 0 3px var(--sucesso-fundo); }
+.indicador-conexao.falha i { background: var(--perigo); box-shadow: 0 0 0 3px var(--perigo-fundo); }
+.indicador-conexao.pendente i { background: var(--atencao); box-shadow: 0 0 0 3px var(--atencao-fundo); }
+
+.conteudo { flex: 1; padding: 22px; max-width: 1440px; width: 100%; margin: 0 auto; }
+
+/* Cada painel é uma seção; só a ativa aparece, com um fade curtinho */
+.painel { display: none; }
+.painel.ativo { display: block; animation: painel-entrando 0.22s ease; }
+.painel-cheio.ativo { display: flex; flex-direction: column; height: calc(100vh - var(--altura-cabecalho) - 44px); }
+
+@keyframes painel-entrando {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Menu inferior: só existe no celular (ver responsivo.css) */
+.menu-inferior { display: none; }
+
+.somente-mobile { display: none; }
+
+/* ----- Tela de login ----- */
+.tela-login {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(1200px 500px at 80% -10%, var(--primaria-fundo), transparent),
+    var(--fundo);
+}
+.cartao-login {
+  width: 100%;
+  max-width: 420px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-grande);
+  padding: 30px 28px;
+  box-shadow: var(--sombra-media);
+  animation: painel-entrando 0.3s ease;
+}
+.cartao-login h1 { font-size: 1.35rem; margin: 18px 0 4px; }
+.descricao-login { color: var(--texto-suave); font-size: 0.9rem; margin-bottom: 16px; }
+
+.conexoes-login { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.conexoes-login article {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 13px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--superficie-2);
+}
+.conexoes-login article svg { width: 20px; height: 20px; color: var(--texto-suave); }
+.conexoes-login article div { flex: 1; }
+.conexoes-login article span { display: block; font-size: 0.74rem; color: var(--texto-suave); }
+.conexoes-login article strong { font-size: 0.88rem; }
+.conexoes-login article i { width: 9px; height: 9px; border-radius: 50%; background: var(--texto-fraco); }
+.conexoes-login article.pronta i { background: var(--sucesso); box-shadow: 0 0 0 3px var(--sucesso-fundo); }
+.conexoes-login article.atencao i { background: var(--atencao); box-shadow: 0 0 0 3px var(--atencao-fundo); }
+.conexoes-login article.falha i { background: var(--perigo); box-shadow: 0 0 0 3px var(--perigo-fundo); }
+
+.acoes-login { display: flex; flex-direction: column; gap: 8px; }
+.acoes-login .botao { width: 100%; justify-content: center; padding: 11px; }
+
+.selo-seguranca {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  margin-top: 18px;
+  font-size: 0.76rem;
+  color: var(--texto-suave);
+}
+.selo-seguranca svg { width: 15px; height: 15px; color: var(--sucesso); }

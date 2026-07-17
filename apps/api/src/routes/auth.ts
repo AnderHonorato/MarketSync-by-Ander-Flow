@@ -41,6 +41,14 @@ authRouter.get('/auth/mercadolivre/start', asyncHandler(async (req, res) => {
   url.searchParams.set('code_challenge', pkceChallenge(verifier));
   url.searchParams.set('code_challenge_method', 'S256');
   url.searchParams.set('platform_id', 'web');
+  // Com ?formato=json a interface recebe o link em vez do redirecionamento.
+  // Serve pro fluxo "conectar pelo celular": o link abre no telefone (onde dá
+  // pra fazer o reconhecimento facial) e a conta conecta NESTA sessão, porque
+  // o callback identifica a tentativa pelo state, não pelo navegador.
+  if (String(req.query.formato ?? '') === 'json') {
+    res.json({ url: url.toString() });
+    return;
+  }
   res.redirect(url.toString());
 }));
 

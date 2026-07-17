@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { config } from '../config.js';
 
 const b64url = (value: Buffer) => value.toString('base64url');
@@ -54,4 +54,22 @@ export function safeEqual(left: string, right: string): boolean {
 
 export function hashClientValue(value?: string): string | undefined {
   return value ? sha256(value).slice(0, 32) : undefined;
+}
+
+// ----- Senhas dos usuários do aplicativo -----
+// Uso scrypt (nativo do Node) com sal por senha. Formato guardado no banco:
+// scrypt$<sal_base64url>$<derivado_base64url>. Sem dependências externas.
+export function hashSenha(senha: string): string {
+  const sal = randomBytes(16);
+  const derivado = scryptSync(senha, sal, 64);
+  return `scrypt$${b64url(sal)}$${b64url(derivado)}`;
+}
+
+export function conferirSenha(senha: string, guardado: string): boolean {
+  const [esquema, salRaw, derivadoRaw] = guardado.split('$');
+  if (esquema !== 'scrypt' || !salRaw || !derivadoRaw) return false;
+  const sal = Buffer.from(salRaw, 'base64url');
+  const esperado = Buffer.from(derivadoRaw, 'base64url');
+  const derivado = scryptSync(senha, sal, esperado.length);
+  return derivado.length === esperado.length && timingSafeEqual(derivado, esperado);
 }

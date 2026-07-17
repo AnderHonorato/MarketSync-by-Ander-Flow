@@ -23,6 +23,15 @@ describe("leitura pública opcional", () => {
   it("marca apenas texto visível e contextual de Pix", () => {
     expect(detectExplicitPix(`<main><p>Economize 8% pagando com Pix.</p></main>`)).toMatchObject({ found: true });
     expect(detectExplicitPix(`<script>{"payment_method":"PIX"}</script><main>Entrega rápida.</main>`)).toEqual({ found: false, evidence: null });
+    // A palavra Pix escrita na página também conta: na seção de meios de
+    // pagamento cai no padrão forte ("pagamento" perto de "Pix")…
+    const pagamento = detectExplicitPix(`<main><h2>Meios de pagamento</h2><p>Pix</p><p>Boleto bancário</p></main>`);
+    expect(pagamento.found).toBe(true);
+    expect(pagamento.evidence).toBeTruthy();
+    // …e uma menção solta (sem contexto de desconto) cai no aviso de "menção"
+    const mencao = detectExplicitPix(`<main><p>Garantia de 90 dias. Pix aceito.</p></main>`);
+    expect(mencao.found).toBe(true);
+    expect(mencao.evidence).toContain("Menção a Pix");
   });
 
   it("monta busca pública por nome e encontra a próxima página permitida", () => {

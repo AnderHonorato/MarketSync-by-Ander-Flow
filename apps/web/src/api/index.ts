@@ -6,6 +6,7 @@ import type {
   ListingRanking,
   ListingQuery,
   ListingsPage,
+  RankingParticipant,
   SelectionPayload,
   UnofficialScan,
   HistoryData,

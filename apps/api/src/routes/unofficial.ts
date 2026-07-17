@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { AppError, asyncHandler } from "../lib/errors.js";
 import { requireCsrf } from "../middleware/session.js";
-import { cancelUnofficialScan, createUnofficialScan, getUnofficialScan, resumeUnofficialScan } from "../services/unofficialScan.js";
+import { cancelUnofficialScan, createUnofficialScan, decideUnofficialScanPause, getUnofficialScan, resumeUnofficialScan } from "../services/unofficialScan.js";
 import { mlRequest } from "../services/mercadoLivre.js";
 import { rankingParticipant, rankingRows, sellerSummary } from "../services/ranking.js";
 import { prisma } from "../db.js";
@@ -10,7 +10,11 @@ import { prisma } from "../db.js";
 export const unofficialRouter = Router();
 
 function scanView(job: ReturnType<typeof createUnofficialScan>) {
-  const { sessionId: _sessionId, cancelRequested: _cancelRequested, _sellerSearchDone: __sd, ...view } = job;
+  const {
+    sessionId: _sessionId, cancelRequested: _cancelRequested,
+    _sellerSearchDone: __sd, _pauseDecision: __pd, _nextPauseAt: __np,
+    ...view
+  } = job;
   return view;
 }
 
@@ -25,6 +29,7 @@ unofficialRouter.post(
       limitMode: z.enum(["limited", "all"]).default("limited"),
       maxItems: z.coerce.number().int().min(1).max(2_000).default(30),
       inspectPix: z.boolean().default(true),
+      pauseEvery: z.coerce.number().int().min(10).max(2_000).optional(),
     }).superRefine((value, context) => {
       if (value.mode === "seller" && (!value.url || value.url.trim().length < 12)) {
         context.addIssue({ code: z.ZodIssueCode.custom, path: ["url"], message: "Informe a URL da página ou loja." });
@@ -53,6 +58,16 @@ unofficialRouter.post(
   "/unofficial/scans/:id/resume",
   requireCsrf,
   asyncHandler(async (req, res) => res.json(scanView(resumeUnofficialScan(req.appSession!.id, String(req.params.id))))),
+);
+
+// Resposta da pausa configurável: continuar a busca ou finalizar com o que já tem
+unofficialRouter.post(
+  "/unofficial/scans/:id/decisao",
+  requireCsrf,
+  asyncHandler(async (req, res) => {
+    const { continuar } = z.object({ continuar: z.boolean() }).parse(req.body);
+    res.json(scanView(decideUnofficialScanPause(req.appSession!.id, String(req.params.id), continuar)));
+  }),
 );
 
 unofficialRouter.get(

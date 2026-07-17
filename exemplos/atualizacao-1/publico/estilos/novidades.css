@@ -1,0 +1,181 @@
+/* ============================================================
+   novidades.css — estilos das partes novas da atualização:
+   central de avisos do cabeçalho, grupos do menu, aba Vendas,
+   aba Perguntas (SAC), aba Tendências e gráfico de visitas.
+   Separei num arquivo próprio pra não mexer no que já existia.
+   ============================================================ */
+
+/* ----- Grupos do menu lateral (oficial × não oficial × geral) ----- */
+.grupo-navegacao {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: var(--texto-fraco);
+  padding: 12px 12px 4px;
+  user-select: none;
+}
+.menu-lateral.recolhido .grupo-navegacao { visibility: hidden; padding: 6px 0 0; }
+
+/* Bolinha de contagem (perguntas sem resposta) */
+.bolinha-contador {
+  margin-left: auto;
+  background: var(--perigo);
+  color: #fff;
+  font-size: 0.66rem;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+}
+
+/* ----- Central de avisos (ticker do cabeçalho) ----- */
+.central-avisos {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 420px;
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--borda);
+  background: var(--superficie-2);
+  color: var(--texto-suave);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--transicao), background var(--transicao), color var(--transicao);
+  overflow: hidden;
+}
+.central-avisos:hover { border-color: var(--primaria); color: var(--texto); }
+.central-avisos svg { width: 14px; height: 14px; flex-shrink: 0; }
+.central-avisos span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 0.16s ease;
+}
+.central-avisos span.trocando { opacity: 0; }
+
+/* Aviso importante: pulso discreto pra chamar o olho sem irritar */
+.central-avisos.importante {
+  border-color: var(--atencao);
+  background: var(--atencao-fundo);
+  color: var(--atencao);
+  animation: pulso-aviso 2s ease-in-out infinite;
+}
+.central-avisos.importante svg { animation: sino-balanca 2s ease-in-out infinite; }
+@keyframes pulso-aviso {
+  0%, 100% { box-shadow: 0 0 0 0 var(--atencao-fundo); }
+  50% { box-shadow: 0 0 0 5px var(--atencao-fundo); }
+}
+@keyframes sino-balanca {
+  0%, 60%, 100% { transform: none; }
+  65%, 75%, 85% { transform: rotate(-12deg); }
+  70%, 80%, 90% { transform: rotate(12deg); }
+}
+
+/* ----- Perguntas (SAC) ----- */
+.cartao-pergunta { display: flex; flex-direction: column; gap: 10px; }
+.topo-pergunta { display: flex; align-items: center; gap: 10px; }
+.foto-pergunta {
+  width: 40px; height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid var(--borda);
+  flex-shrink: 0;
+}
+.texto-pergunta {
+  display: flex; gap: 8px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  background: var(--superficie-2);
+  border-radius: 10px;
+  padding: 10px 13px;
+}
+.texto-pergunta svg { width: 16px; height: 16px; color: var(--primaria); margin-top: 3px; flex-shrink: 0; }
+.resposta-dada {
+  border-left: 3px solid var(--sucesso);
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+.resposta-dada strong { font-size: 0.78rem; color: var(--sucesso); display: block; margin-bottom: 2px; }
+.resposta-dada p { color: var(--texto-suave); }
+.acoes-pergunta { display: flex; gap: 8px; align-items: flex-start; }
+.acoes-pergunta textarea { flex: 1; resize: vertical; min-height: 44px; }
+.acoes-pergunta .botao { white-space: nowrap; }
+
+/* ----- Tendências ----- */
+.grade-tendencias {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+.cartao-tendencia {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-grande);
+  padding: 11px 14px;
+  transition: border-color var(--transicao), transform 0.15s ease;
+}
+.cartao-tendencia:hover { border-color: var(--primaria); transform: translateY(-2px); }
+.cartao-tendencia strong { flex: 1; font-size: 0.87rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.posicao-tendencia {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--primaria);
+  background: var(--primaria-fundo);
+  border-radius: 8px;
+  padding: 3px 7px;
+  flex-shrink: 0;
+}
+.acoes-tendencia { display: flex; gap: 2px; flex-shrink: 0; }
+.numeros-reputacao { display: flex; gap: 18px; flex-wrap: wrap; font-size: 0.8rem; color: var(--texto-suave); }
+.numeros-reputacao b { display: block; color: var(--texto); font-size: 1.05rem; }
+
+/* ----- Gráfico de visitas (barras em CSS puro) ----- */
+.grafico-visitas {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 130px;
+  background: var(--superficie-2);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  padding: 10px;
+}
+.barra-visita {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  cursor: help;
+}
+.barra-visita i {
+  display: block;
+  width: 100%;
+  background: var(--primaria);
+  border-radius: 3px 3px 0 0;
+  opacity: 0.75;
+  transition: opacity var(--transicao);
+}
+.barra-visita:hover i { opacity: 1; }
+
+/* ----- Ajustes responsivos das novidades ----- */
+@media (max-width: 920px) {
+  .central-avisos { max-width: 46vw; }
+}
+@media (max-width: 640px) {
+  /* No celular o ticker vira só o sininho (o texto abriria apertado demais) */
+  .central-avisos { max-width: 40px; padding: 6px 9px; }
+  .central-avisos span { display: none; }
+  .acoes-pergunta { flex-direction: column; }
+  .acoes-pergunta .botao { width: 100%; justify-content: center; }
+  .grade-tendencias { grid-template-columns: 1fr; }
+}

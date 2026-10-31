@@ -2106,3 +2106,12 @@ html[data-theme="dark"] .topbar-message { color: #a9b3bb; }
 .notice.warning div { flex: 1; }
 .notice.warning .button { flex-shrink: 0; white-space: nowrap; }
 .notice.warning .auth-connect { flex-shrink: 0; white-space: nowrap; }
+
+/* market-sync-pulsar — identidade de dashboard de operações. */
+.brand-mark{position:relative;isolation:isolate;overflow:visible;transition:transform .25s ease}
+.brand:hover .brand-mark{transform:translateY(-2px)}
+.brand-mark::after{content:'';position:absolute;inset:-5px;border:1px dashed color-mix(in srgb,var(--blue) 42%,transparent);border-radius:inherit;opacity:0;transform:scale(.85);pointer-events:none;transition:transform .35s ease,opacity .35s ease}
+.brand:hover .brand-mark::after{opacity:.8;transform:scale(1)}
+.button.primary{transition:transform .2s ease,box-shadow .25s ease}
+.button.primary:hover{transform:translateY(-2px);box-shadow:0 9px 20px color-mix(in srgb,var(--blue) 19%,transparent)}
+@media(prefers-reduced-motion:reduce){.brand-mark,.brand-mark::after,.button.primary{transition:none}}
